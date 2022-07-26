@@ -48,6 +48,8 @@ func init() {
 }
 
 // 访问微博 api 获取新微博、评论
+// 吗的 开了梯子这里就爬不动了
+// 我还以为代码哪里有问题了
 func GetIndex() (res gothon.Result) {
 	if resp, err := (&http.Client{}).Do(req); checkErr(err) {
 		defer resp.Body.Close()
@@ -73,6 +75,7 @@ func Query() {
 				} else {
 					// 如果 未记录过该微博 或者 内容有编辑 的同时满足 生成图片任务数小于 2 时
 					if SavedText, ok := MbText[c[1].Mblog.Bid]; (!ok || SavedText != c[1].Mblog.Text) && Tasks < 2 {
+						fmt.Println(c[1].Mblog.Bid, "start")
 						ch := make(chan string)
 						Tasks += 1
 

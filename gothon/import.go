@@ -1,6 +1,5 @@
 package gothon
 
-// code from: https://blog.csdn.net/weixin_43988498/article/details/120631081
 import (
 	"fmt"
 	"os"
@@ -43,8 +42,8 @@ type Result struct {
 
 var create_new_img *python3.PyObject
 
+// 初始化python环境
 func init() {
-	// 初始化python环境
 	python3.Py_Initialize()
 	if !python3.Py_IsInitialized() {
 		fmt.Println("Error initializing the python interpreter")
@@ -54,7 +53,9 @@ func init() {
 	create_new_img = d2p.GetAttrString("create_new_img")
 }
 
+// code from: https://blog.csdn.net/weixin_43988498/article/details/120631081
 func CreateNewImg(wg *sync.WaitGroup, ch chan string, w Mblog, cookie string) {
+	defer func() { ch <- w.Bid }()
 	defer wg.Done()
 	wg.Wait()
 	wg.Add(1)
@@ -95,15 +96,6 @@ func CreateNewImg(wg *sync.WaitGroup, ch chan string, w Mblog, cookie string) {
 	file := python3.PyTuple_New(1)
 	python3.PyTuple_SetItem(file, 0, python3.PyUnicode_FromString(w.Bid+".png"))
 	save.Call(file, python3.Py_None)
-	ch <- w.Bid
-}
-
-func InsertBeforeSysPath(p string) {
-	sysModule := python3.PyImport_ImportModule("sys")
-	path := sysModule.GetAttrString("path")
-	pObject := python3.PyUnicode_FromString(p)
-	defer pObject.DecRef()
-	python3.PyList_Append(path, pObject)
 }
 
 // ImportModule
@@ -115,22 +107,7 @@ func ImportModule(dir, name string) *python3.PyObject {
 	return python3.PyImport_ImportModule(name)                        // return __import__(name)
 }
 
+// 为字典中添加项
 func SetItemString(p *python3.PyObject, key, val string) {
 	python3.PyDict_SetItemString(p, key, python3.PyUnicode_FromString(val))
 }
-
-// pythonRepr
-// @Description: PyObject转换为string
-// func pythonRepr(o *python3.PyObject) (string, error) {
-// 	if o == nil {
-// 		return "", fmt.Errorf("object is nil")
-// 	}
-// 	s := o.Repr()
-// 	if s == nil {
-// 		python3.PyErr_Clear()
-// 		return "", fmt.Errorf("failed to call Repr object method")
-// 	}
-// 	defer s.DecRef()
-
-// 	return python3.PyUnicode_AsUTF8(s), nil
-// }
