@@ -1,12 +1,46 @@
 import os
+from datetime import datetime
+from io import BytesIO
+from math import ceil
+
 import qrcode
 import requests
-from math import ceil
+from lxml.etree import HTML
 from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
 
+headers = {
+    'Connection': 'keep-alive',
+    'Accept-Language': 'zh-CN,zh;q=0.9',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+    'Upgrade-Insecure-Requests': '1',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.62 Safari/537.36',
+    'cookie': ''
+}
 
-def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
+def get_content_text(text: str) -> str:
+        text = text.replace('<span class="surl-text">', '').replace('</span>', '')
+        span = HTML('<span class="ctt">' + text + '</span>')
+        for _img in span.xpath('./span[@class="url-icon"]/img'):
+            alt, src = _img.xpath('./@alt')[0], _img.xpath('./@src')[0]
+            text = text.replace(
+                f'<span class="url-icon"><img alt="{alt}" src="{src}" style="width:1em; height:1em;" /></span>',
+                alt
+            )
+        for _a in span.xpath('.//a'):
+            href = _a.xpath('./@href')[0]
+            atext = _a.xpath('./text()')[0]
+            text = text.replace(f'<a href="{href.replace("&", "&amp;")}">{atext}</a>', atext)
+            text = text.replace(f'<a  href="{href}" data-hide="">{atext}</a>', atext)
+        text = text.replace('<br />', '\n')
+        dot = len(text)
+        for i in range(dot, 0, -1):
+            if not text[i-1] == ' ':
+                dot = i
+                break
+        return text[:dot]
+
+def create_new_img(post: dict, userInfo: dict, cookie: str = None, w: int = 1080) -> Image.Image.save:
     """
     根据微博博文生成图片
     Args:
@@ -16,9 +50,10 @@ def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
     Returns:
         PIL 类中的 Image 对象
     """
+    headers['cookie'] = cookie
 
     # 定义字体
-    font_type = 'live/HarmonyOS_Sans_SC_Regular.ttf'  # 'C:/Windows/Fonts/msyh.ttc'
+    font_type = 'gothon/HarmonyOS_Sans_SC_Regular.ttf'  # 'C:/Windows/Fonts/msyh.ttc'
     font_blod_type = 'C:/Windows/Fonts/msyhbd.ttc'
     font_song = 'C:/Windows/Fonts/simsun.ttc'
     name_font = ImageFont.truetype(font_blod_type, 100)
@@ -35,6 +70,10 @@ def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
     now_str = ''
     now_height = [[0]]  # 列表中包含多个梓列表，子列表表示这行字所处高度(像素值)以及这行文本内容
     if post.get('repo'):
+        try:
+            post['repo'] = get_content_text(post['repo'])
+        except Exception as e:
+            print('repo Error:', e)
         for chn in post['repo']:
             # 每次新增一个文字 如果超过线宽 就把之前的文字存起来
             if chn == '\n' or text_font.getsize(now_str+chn)[0] > text_width*w:
@@ -50,6 +89,11 @@ def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
         now_height.append([now_height[-1][0] + text_font.getsize(now_str+chn)[1] + 15])
         now_str = ''
         split_num = len(now_height) - 1
+
+    try:
+        post['text'] = get_content_text(post['text'])
+    except Exception as e:
+        print('text Error', e)
 
     for chn in post.get('text'):
         # 每次新增一个文字 如果超过线宽 就把之前的文字存起来
@@ -70,17 +114,19 @@ def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
     pics = []
     for pic in post.get('picUrls'):
         try:
-            response = requests.get(pic, headers=headers)  # 请求图片
+            response = requests.get('https://wx4.sinaimg.cn/large/'+pic+'.jpg', headers=headers)  # 请求图片
             bg = Image.open(BytesIO(response.content))  # 读取图片
             bg = bg.resize((int(text_width*w), int(bg.height*text_width*w/bg.width)), Image.ANTIALIAS)  # 调整大小
             picHeight += bg.height + 3
             pics.append(bg)
-        except Exception:
-            print('[weibo-d2p] [ERROR]: 图片加载错误', pic)
+        except Exception as e:
+            print('[ERROR]: 图片加载错误', 'https://wx4.sinaimg.cn/large/'+pic+'.jpg', e)
 
     # 测量 发送时间以及设备 文本的高宽
     url_font = ImageFont.truetype(font_type, int(75*text_width*w/tw))
-    s = post['time']
+    dt = datetime.strptime(post['time'], '%a %b %d %H:%M:%S %z %Y')
+    dt = dt.strftime('%Y-%m-%d %H:%M')[2:]
+    s = dt + ' 来自' + post['source']
     tw, th = url_font.getsize(s)
 
     # 新建底片用以书写内容
@@ -88,7 +134,7 @@ def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
     draw = ImageDraw.Draw(image)
 
     # 背景发卡
-    faka = Image.open(os.path.join('.', 'plugins', 'weibo_detector', 'card.png'))
+    faka = Image.open(os.path.join('.', 'gothon', 'card.png'))
     a = Image.new('L', faka.size, 80)  # 透明度 80/255
     i0 = 0
     j0 = 0
@@ -160,4 +206,4 @@ def create_new_img(post: dict, userInfo: dict, headers=None, w=1080) -> Image:
     dw, dh = desc_font.getsize('“')
     draw.text((int(0.015*w+dw), int(0.225*w)), userInfo['desc'], '#666666', follow_font)
 
-    return image
+    return image.save
