@@ -4,6 +4,7 @@ package gothon
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	python3 "github.com/go-python/cpy3"
 )
@@ -40,7 +41,7 @@ type Result struct {
 	} `json:"data"`
 }
 
-var d2p, create_new_img *python3.PyObject
+var create_new_img *python3.PyObject
 
 func init() {
 	// 初始化python环境
@@ -49,41 +50,41 @@ func init() {
 		fmt.Println("Error initializing the python interpreter")
 		os.Exit(1)
 	}
-	//InsertBeforeSysPath("C:\\Users\\drelf\\AppData\\Local\\Programs\\Python\\Python37\\Lib\\site-packages")
-	d2p = ImportModule(".\\gothon", "d2p")
+	d2p := ImportModule(".\\gothon", "d2p")
 	create_new_img = d2p.GetAttrString("create_new_img")
 }
 
-func CreateNewImg(w Mblog, cookie string) {
-	// 获取函数方法
-	//userInfo := d2p.GetAttrString("userInfo")
-	//headers := d2p.GetAttrString("headers")
+func CreateNewImg(wg *sync.WaitGroup, ch chan string, w Mblog, cookie string) {
+	defer wg.Done()
+	wg.Wait()
+	wg.Add(1)
 
-	// 设置调用的参数（一个元组）
+	// 设置调用的参数 args(post, userInfo, cookie)
 	post := python3.PyDict_New()
-	python3.PyDict_SetItemString(post, "mid", python3.PyUnicode_FromString(w.Mid))
+	SetItemString(post, "mid", w.Mid)
+	SetItemString(post, "bid", w.Bid)
 	if w.RetweetedStatus == nil {
 		python3.PyDict_SetItemString(post, "repo", python3.Py_None)
-		python3.PyDict_SetItemString(post, "text", python3.PyUnicode_FromString(w.Text))
+		SetItemString(post, "text", w.Text)
 	} else {
-		python3.PyDict_SetItemString(post, "repo", python3.PyUnicode_FromString(w.Text))
-		python3.PyDict_SetItemString(post, "text", python3.PyUnicode_FromString("转发了 @"+w.RetweetedStatus.User.ScreenName+"："+w.RetweetedStatus.Text))
+		SetItemString(post, "repo", w.Text)
+		SetItemString(post, "text", "转发了 @"+w.RetweetedStatus.User.ScreenName+"："+w.RetweetedStatus.Text)
 	}
 	picUrls := python3.PyList_New(len(w.PicIds))
 	for pos, pic := range w.PicIds {
 		python3.PyList_SetItem(picUrls, pos, python3.PyUnicode_FromString(pic))
 	}
 	python3.PyDict_SetItemString(post, "picUrls", picUrls)
-	python3.PyDict_SetItemString(post, "time", python3.PyUnicode_FromString(w.CreatedAt))
-	python3.PyDict_SetItemString(post, "source", python3.PyUnicode_FromString(w.Source))
+	SetItemString(post, "time", w.CreatedAt)
+	SetItemString(post, "source", w.Source)
 
 	userInfo := python3.PyDict_New()
 	python3.PyDict_SetItemString(userInfo, "id", python3.PyLong_FromGoInt(w.User.ID))
-	python3.PyDict_SetItemString(userInfo, "name", python3.PyUnicode_FromString(w.User.ScreenName))
-	python3.PyDict_SetItemString(userInfo, "face", python3.PyUnicode_FromString(w.User.AvatarHd))
-	python3.PyDict_SetItemString(userInfo, "desc", python3.PyUnicode_FromString(w.User.Description))
+	SetItemString(userInfo, "name", w.User.ScreenName)
+	SetItemString(userInfo, "face", w.User.AvatarHd)
+	SetItemString(userInfo, "desc", w.User.Description)
 	python3.PyDict_SetItemString(userInfo, "follow", python3.PyLong_FromGoInt(w.User.FollowCount))
-	python3.PyDict_SetItemString(userInfo, "follower", python3.PyUnicode_FromString(w.User.FollowersCountStr))
+	SetItemString(userInfo, "follower", w.User.FollowersCountStr)
 
 	args := python3.PyTuple_New(3)
 	python3.PyTuple_SetItem(args, 0, post)
@@ -91,11 +92,10 @@ func CreateNewImg(w Mblog, cookie string) {
 	python3.PyTuple_SetItem(args, 2, python3.PyUnicode_FromString(cookie))
 
 	save := create_new_img.Call(args, python3.Py_None)
-	img, _ := pythonRepr(save)
-	fmt.Println(img)
 	file := python3.PyTuple_New(1)
 	python3.PyTuple_SetItem(file, 0, python3.PyUnicode_FromString(w.Bid+".png"))
 	save.Call(file, python3.Py_None)
+	ch <- w.Bid
 }
 
 func InsertBeforeSysPath(p string) {
@@ -115,18 +115,22 @@ func ImportModule(dir, name string) *python3.PyObject {
 	return python3.PyImport_ImportModule(name)                        // return __import__(name)
 }
 
+func SetItemString(p *python3.PyObject, key, val string) {
+	python3.PyDict_SetItemString(p, key, python3.PyUnicode_FromString(val))
+}
+
 // pythonRepr
 // @Description: PyObject转换为string
-func pythonRepr(o *python3.PyObject) (string, error) {
-	if o == nil {
-		return "", fmt.Errorf("object is nil")
-	}
-	s := o.Repr()
-	if s == nil {
-		python3.PyErr_Clear()
-		return "", fmt.Errorf("failed to call Repr object method")
-	}
-	defer s.DecRef()
+// func pythonRepr(o *python3.PyObject) (string, error) {
+// 	if o == nil {
+// 		return "", fmt.Errorf("object is nil")
+// 	}
+// 	s := o.Repr()
+// 	if s == nil {
+// 		python3.PyErr_Clear()
+// 		return "", fmt.Errorf("failed to call Repr object method")
+// 	}
+// 	defer s.DecRef()
 
-	return python3.PyUnicode_AsUTF8(s), nil
-}
+// 	return python3.PyUnicode_AsUTF8(s), nil
+// }

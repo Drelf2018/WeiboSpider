@@ -205,5 +205,4 @@ def create_new_img(post: dict, userInfo: dict, cookie: str = None, w: int = 1080
     draw.text((int(0.015*w), int(0.21*w)), '“', '#787878', desc_font)
     dw, dh = desc_font.getsize('“')
     draw.text((int(0.015*w+dw), int(0.225*w)), userInfo['desc'], '#666666', follow_font)
-
     return image.save
