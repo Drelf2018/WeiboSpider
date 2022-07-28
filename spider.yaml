@@ -1,0 +1,10 @@
+account:
+  uid: 7198559139
+  cookie: SCF=Ao_CfNDAVoOOnPeRbWYncYwIxkt1qdMnP8GJwYAFUbdV2AwNmv18NfGuAVLGkp_al91dOQIJTvviNKRX_WnQV0I.; SUB=_2A25P0FJVDeRhGeFM7lQU8i7PyjmIHXVtO34drDV6PUJbktCOLRHBkW1NQNxRTyundxN1rIEaDb8vuDu9LX1y2PfV; SUBP=0033WrSXqPxfM725Ws9jqgMF55529P9D9WWsM7qnLH5XXeUsRC8WX5b75NHD95QNeo-cSKz7e02fWs4DqcjPi--RiKnXiKnci--4i-zEi-2ReKzpe0nt; _T_WM=b7e06bb363bcddabb34f5e7aba1d13f8; WEIBOCN_FROM=1110006030; MLOGIN=1; XSRF-TOKEN=56db96; mweibo_short_token=b93d1a8e49; M_WEIBOCN_PARAMS=from=page_100808&luicode=10000011&lfid=1008081a127e1db26d4483eadf1d1dbe1a80c2_-_live&fid=1008081a127e1db26d4483eadf1d1dbe1a80c2_-_live&uicode=10000011
+ws:
+  host: 127.0.0.1
+  post: 7000
+message:
+  weibo: "{weibo}"
+  online: "{online}"
+  comment: "{comment}"
