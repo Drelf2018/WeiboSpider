@@ -30,12 +30,8 @@ type Mblog struct {
 type Result struct {
 	Data struct {
 		Cards []struct {
-			CardGroup []struct {
-				CardType string `json:"card_type"`
-				Desc     string `json:"desc,omitempty"`
-				Desc1    string `json:"desc1,omitempty"`
-				Mblog    Mblog  `json:"mblog,omitempty"`
-			} `json:"card_group,omitempty"`
+			CardType int   `json:"card_type"`
+			Mblog    Mblog `json:"mblog,omitempty"`
 		} `json:"cards"`
 	} `json:"data"`
 }
@@ -94,8 +90,14 @@ func CreateNewImg(wg *sync.WaitGroup, ch chan string, w Mblog, cookie string) {
 
 	save := create_new_img.Call(args, python3.Py_None)
 	file := python3.PyTuple_New(1)
-	python3.PyTuple_SetItem(file, 0, python3.PyUnicode_FromString(w.Bid+".png"))
-	save.Call(file, python3.Py_None)
+
+	err := os.MkdirAll("./data/images/wb", os.ModePerm)
+	if err != nil {
+		fmt.Println(err)
+	} else {
+		python3.PyTuple_SetItem(file, 0, python3.PyUnicode_FromString("./data/images/wb/"+w.Bid+".png"))
+		save.Call(file, python3.Py_None)
+	}
 }
 
 // ImportModule
