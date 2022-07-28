@@ -19,20 +19,23 @@ headers = {
 }
 
 def get_content_text(text: str) -> str:
-        text = text.replace('<span class="surl-text">', '').replace('</span>', '')
         span = HTML('<span class="ctt">' + text + '</span>')
-        for _img in span.xpath('./span[@class="url-icon"]/img'):
+        for _img in span.xpath('.//span[@class="url-icon"]/img'):
             alt, src = _img.xpath('./@alt')[0], _img.xpath('./@src')[0]
             text = text.replace(
-                f'<span class="url-icon"><img alt="{alt}" src="{src}" style="width:1em; height:1em;" /></span>',
+                f'<span class="url-icon"><img alt={alt} src="{src}" style="width:1em; height:1em;" /></span>',
                 alt
             )
         for _a in span.xpath('.//a'):
             href = _a.xpath('./@href')[0]
-            atext = _a.xpath('./text()')[0]
-            text = text.replace(f'<a href="{href.replace("&", "&amp;")}">{atext}</a>', atext)
-            text = text.replace(f'<a  href="{href}" data-hide="">{atext}</a>', atext)
-        text = text.replace('<br />', '\n')
+            atext = _a.xpath('./text()')
+            if atext:
+                atext = atext[0]
+                text = text.replace(f'<a href="{href.replace("&", "&amp;")}">{atext}</a>', atext)
+            else:
+                atext = _a.xpath('./span/text()')[0]
+                text = text.replace(f'<a  href="{href}" data-hide=""><span class="surl-text">{atext}</span></a>', atext)
+        text = text.replace('<br />', '\n').replace('</span>', '')
         dot = len(text)
         for i in range(dot, 0, -1):
             if not text[i-1] == ' ':
