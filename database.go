@@ -34,8 +34,9 @@ func LoadConfig() {
 
 type Config struct {
 	Account struct {
-		Cookie string `yaml:"cookie"`
-		UID    int    `yaml:"uid"`
+		Cookie string  `yaml:"cookie"`
+		Topic  *string `yaml:"topic"`
+		UID    int     `yaml:"uid"`
 	} `yaml:"account"`
 	Message struct {
 		Comment string `yaml:"comment"`
