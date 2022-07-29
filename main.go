@@ -68,6 +68,12 @@ func init() {
 	} else {
 		panic(err)
 	}
+	if CommentReq, err = http.NewRequest("GET", CommentUrl, nil); err == nil {
+		req.Header.Add("cookie", cfg.Account.Cookie)
+		req.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36")
+	} else {
+		panic(err)
+	}
 }
 
 // 访问微博 api 获取新微博、评论
@@ -93,9 +99,10 @@ func Query() {
 		switch card.CardType {
 		// 发微博或评论
 		case 9:
+			go GetComment(card.Mblog.Bid, card.Mblog.Mid)
 			// 如果 未记录过该微博 或者 内容有编辑 的同时满足 生成图片任务数小于 2 时
 			if SavedText, ok := MbText[card.Mblog.Bid]; (!ok || SavedText != card.Mblog.Text) && Tasks < 2 {
-				log.Info("更新微博", card.Mblog.Bid, card.Mblog.Text)
+				log.Info("更新微博 " + card.Mblog.Bid + " " + card.Mblog.Text)
 				ch := make(chan string)
 				Tasks += 1
 
@@ -107,47 +114,12 @@ func Query() {
 					bid := <-ch
 					MbText[bid] = NewText
 					go SaveContent()
-					log.Info("完成更新", bid)
+					log.Info("完成更新 " + bid)
 					Tasks -= 1
 					// send_msg
 				}(ch, card.Mblog.Text)
 			}
 		}
-	}
-}
-
-type OnlineStatus struct {
-	Data struct {
-		Cards []struct {
-			CardGroup []struct {
-				Desc1 *string `json:"desc1,omitempty"`
-			} `json:"card_group,omitempty"`
-		} `json:"cards,omitempty"`
-	} `json:"data"`
-}
-
-func Online() func() string {
-	var last_online_status string
-	url := "https://m.weibo.cn/api/container/getIndex?from=page_100808&mod[]=TAB%3Ffrom%3Dpage_100808&mod[]=TAB&containerid=1008081a127e1db26d4483eadf1d1dbe1a80c2_-_live"
-	return func() string {
-		if resp, err := http.Get(url); checkErr(err) {
-			defer resp.Body.Close()
-			var status OnlineStatus
-			if body, err := ioutil.ReadAll(resp.Body); checkErr(err) {
-				if err := json.Unmarshal(body, &status); checkErr(err) {
-					for _, card := range status.Data.Cards {
-						if len(card.CardGroup) > 1 && card.CardGroup[1].Desc1 != nil {
-							if last_online_status != *card.CardGroup[1].Desc1 {
-								last_online_status = *card.CardGroup[1].Desc1
-								log.Info(last_online_status)
-								return last_online_status
-							}
-						}
-					}
-				}
-			}
-		}
-		return ""
 	}
 }
 
